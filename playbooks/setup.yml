@@ -20,6 +20,27 @@
         state: started
         enabled: yes
 
+    - name: Install Cockpit
+      dnf:
+        name: cockpit
+        state: present
+
+    - name: Install Cockpit Docker plugin
+      dnf:
+        name: cockpit-docker
+        state: present
+
+    - name: Ensure Cockpit service is started
+      systemd:
+        name: cockpit.socket
+        state: started
+        enabled: yes
+
+    - name: Restart Cockpit service
+      systemd:
+        name: cockpit.socket
+        state: restarted
+
     - name: Pull MariaDB Docker image
       docker_image:
         name: mariadb
