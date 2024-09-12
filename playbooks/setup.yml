@@ -1,33 +1,27 @@
 ---
-- name: Setup Fedora Server
-  hosts: all
+- name: Setup Fedora Server with Podman and MariaDB
+  hosts: localhost
   become: yes
   tasks:
 
-    - name: Install Git
+    - name: Update all system packages
       dnf:
-        name: git
-        state: present
+        name: '*'
+        state: latest
 
-    - name: Install Docker
+    - name: Install Podman
       dnf:
-        name: docker
+        name: podman
         state: present
-
-    - name: Start and enable Docker service
-      systemd:
-        name: docker
-        state: started
-        enabled: yes
 
     - name: Install Cockpit
       dnf:
         name: cockpit
         state: present
 
-    - name: Install Cockpit Docker plugin
+    - name: Install Cockpit Podman plugin
       dnf:
-        name: cockpit-docker
+        name: cockpit-podman
         state: present
 
     - name: Ensure Cockpit service is started
@@ -41,32 +35,42 @@
         name: cockpit.socket
         state: restarted
 
-    - name: Pull MariaDB Docker image
-      docker_image:
-        name: mariadb
-        tag: latest
-        source: pull
+    - name: Pull the latest MariaDB Podman image
+      command:
+        cmd: podman pull mariadb:latest
+        creates: /var/lib/containers/storage/overlay
+      register: mariadb_image
 
-    - name: Run MariaDB container
-      docker_container:
-        name: mariadb
-        image: mariadb:latest
-        state: started
-        restart_policy: always
-        exposed_ports:
-          - "3306"
-        published_ports:
-          - "3306:3306"
-        env:
-          MYSQL_ROOT_PASSWORD: kumar11
-          MYSQL_DATABASE: testdb
-          MYSQL_USER: gk
-          MYSQL_PASSWORD: kumar11
-        volumes:
-          - mariadb_data:/var/lib/mysql
+    - name: Display the result of the MariaDB image pull
+      debug:
+        msg: "MariaDB Podman image pulled successfully. Details: {{ mariadb_image }}"
 
-    - name: Create Docker volume for MariaDB data
-      docker_volume:
-        name: mariadb_data
-        state: present
+    - name: Create Podman volume for MariaDB data
+      command:
+        cmd: podman volume create mariadb_data
+        creates: /var/lib/containers/storage/volumes/mariadb_data
+      register: mariadb_volume
 
+    - name: Display the result of volume creation
+      debug:
+        msg: "MariaDB Podman volume created successfully. Details: {{ mariadb_volume }}"
+
+    - name: Run MariaDB container with Podman
+      command:
+        cmd: >
+          podman run -d
+          --name mariadb
+          --restart always
+          -p 3306:3306
+          -e MYSQL_ROOT_PASSWORD=your_root_password
+          -e MYSQL_DATABASE=your_database_name
+          -e MYSQL_USER=your_user
+          -e MYSQL_PASSWORD=your_password
+          -v mariadb_data:/var/lib/mysql
+          mariadb:latest
+        creates: /var/lib/containers/storage/overlay
+      register: mariadb_container
+
+    - name: Display the result of MariaDB container setup
+      debug:
+        msg: "MariaDB Podman container is up and running. Details: {{ mariadb_container }}"
