@@ -1,0 +1,56 @@
+---
+- name: Setup Fedora Server
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Update all packages
+      dnf:
+        name: '*'
+        state: latest
+
+    - name: Install Git
+      dnf:
+        name: git
+        state: present
+
+    - name: Install Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull MariaDB Docker image
+      docker_image:
+        name: mariadb
+        tag: latest
+        source: pull
+
+    - name: Run MariaDB container
+      docker_container:
+        name: mariadb
+        image: mariadb:latest
+        state: started
+        restart_policy: always
+        exposed_ports:
+          - "3306"
+        published_ports:
+          - "3306:3306"
+        env:
+          MYSQL_ROOT_PASSWORD: kumar11
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: gk
+          MYSQL_PASSWORD: kumar11
+        volumes:
+          - mariadb_data:/var/lib/mysql
+
+    - name: Create Docker volume for MariaDB data
+      docker_volume:
+        name: mariadb_data
+        state: present
+
